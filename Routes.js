@@ -35,7 +35,7 @@ router.post('/send-message', async (req, res) => {
             });
             await newUser.save();
             userInfo = await Chat.findOne({ userId });
-            console.log("added to db", userInfo)
+            // console.log("added to db", userInfo)
         } else {
             userInfo.chats.push({
                 text: message,
@@ -43,14 +43,14 @@ router.post('/send-message', async (req, res) => {
                 role: 'user'
             });
             await userInfo.save();
-            console.log('userInfo', userInfo);
+            // console.log('userInfo', userInfo);
 
             console.log("db updated")
         }
         prevChats = userInfo.chats;
         const last20Chats = prevChats.slice(-20);
 
-        
+
 
         const MetaPrompt = `follow the below points and give equal importance to all the points.
        1)  your name is Mitra.You are psychiatrist and mental health
@@ -85,8 +85,8 @@ router.post('/send-message', async (req, res) => {
         console.log('sending to openAI');
 
         const systemMsg = `${MetaPrompt}.previous chats: ${last20Chats}`;
-        console.log('system message', systemMsg)
-        const chatToSend=`consider ${systemMsg} first and then reply to ${message}`
+        // console.log('system message', systemMsg)
+        const chatToSend = `consider ${systemMsg} first and then reply to ${message}`
         const headers = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${process.env.OPENAIKEY}`
@@ -113,33 +113,33 @@ router.post('/send-message', async (req, res) => {
             .then(response => response?.json())
             .then(data => res.status(200).json(data.choices[0].message.content))
             .catch(error => console.error('Error:', error));
-        
+
     } catch (err) {
         res.status(500).send({ message: err });
         console.log("error in send-message route", err);
     }
 });
 
-    router.post('/getAllChats', async (req, res) => {
-        try {
-            let result;
-            const { userId } = req.body;
-            if (!userId ) {
-                res.status(400).json({
-                    status: 400,
-                    message: 'Empty Body'
-                });
-                return;
-            }
-
-            let prevChats;
-            const userInfo = await Chat.findOne({ userId });
-            prevChats = userInfo.chats;
-            res.status(200).json(prevChats);
-        } catch (err) {
-            console.log("error in getAllChats");
+router.post('/getAllChats', async (req, res) => {
+    try {
+        let result;
+        const { userId } = req.body;
+        if (!userId) {
+            res.status(400).json({
+                status: 400,
+                message: 'Empty Body'
+            });
+            return;
         }
-            
+
+        let prevChats;
+        const userInfo = await Chat.findOne({ userId });
+        prevChats = userInfo.chats;
+        res.status(200).json(prevChats);
+    } catch (err) {
+        console.log("error in getAllChats");
+    }
+
 });
 
 
