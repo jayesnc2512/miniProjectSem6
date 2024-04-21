@@ -24,6 +24,7 @@ router.post('/send-message', async (req, res) => {
         //status==moderate anxiety issue,
         //status==Serious anxiety issue
         //status==no  anxiety issue
+        let last20Chats
         if (!userInfo) {
             const newUser = new Chat({
                 userId: userId,
@@ -34,8 +35,10 @@ router.post('/send-message', async (req, res) => {
                 }]
             });
             await newUser.save();
-            userInfo = await Chat.findOne({ userId });
+            // userInfo = await Chat.findOne({ userId });
             // console.log("added to db", userInfo)
+            prevChats = "null";
+            last20Chats = "no chats";
         } else {
             userInfo.chats.push({
                 text: message,
@@ -46,9 +49,10 @@ router.post('/send-message', async (req, res) => {
             // console.log('userInfo', userInfo);
 
             console.log("db updated")
+            prevChats = userInfo.chats;
+             last20Chats = prevChats.slice(-20);
         }
-        prevChats = userInfo.chats;
-        const last20Chats = prevChats.slice(-20);
+      
 
 
 
@@ -111,7 +115,7 @@ router.post('/send-message', async (req, res) => {
             body: JSON.stringify(requestBody)
         })
             .then(response => response?.json())
-            .then(data => res.status(200).json(data.choices[0].message.content))
+            .then(data => res.status(200).json({ chatBack: data.choices[0].message.content }))
             .catch(error => console.error('Error:', error));
 
     } catch (err) {
