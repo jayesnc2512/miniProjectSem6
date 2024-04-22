@@ -122,7 +122,7 @@ router.post('/send-message', async (req, res) => {
         userInfo.chats.push({
             text: message,
             userStatus: status,
-            role: 'assistant'
+            role: 'Mitra'
         });
 
         // Assuming userInfo.save() is asynchronous and returns a promise
