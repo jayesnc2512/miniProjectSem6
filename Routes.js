@@ -122,11 +122,11 @@ router.post('/send-message', async (req, res) => {
         userInfo.chats.push({
             text: message,
             userStatus: status,
-            role: 'user'
+            role: 'assistant'
         });
 
         // Assuming userInfo.save() is asynchronous and returns a promise
-        await userInfo.save();
+        userInfo.save();
         res.status(200).json({ chatBack: message});
     })
             .catch(error => console.error('Error:', error));
