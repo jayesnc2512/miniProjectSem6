@@ -115,7 +115,20 @@ router.post('/send-message', async (req, res) => {
             body: JSON.stringify(requestBody)
         })
             .then(response => response?.json())
-            .then(data => res.status(200).json({ chatBack: data.choices[0].message.content }))
+            .then(data => {
+        // Assuming data has the structure you expect
+        const message = data.choices[0].message.content;
+
+        userInfo.chats.push({
+            text: message,
+            userStatus: status,
+            role: 'user'
+        });
+
+        // Assuming userInfo.save() is asynchronous and returns a promise
+        await userInfo.save();
+        res.status(200).json({ chatBack: message});
+    })
             .catch(error => console.error('Error:', error));
 
     } catch (err) {
