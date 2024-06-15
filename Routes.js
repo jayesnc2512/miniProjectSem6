@@ -10,7 +10,7 @@ const router = express.Router();
 router.post('/send-message', async (req, res) => {
     try {
         let result;
-        const { userId, message, status } = req.body;
+        let { userId, message, status } = req.body;
         if (!userId || !message) {
             res.status(400).json({
                 status: 400,
@@ -95,13 +95,14 @@ router.post('/send-message', async (req, res) => {
         10) use different emojis to express the feelings. 
         11) gather information of user about its mental health by 
             talking with it friendly.
+            13) also sometimes not always try to suggest some mindfull activities on our app. like meditation or exercise or listen to amazinf stress relief music which we have in our app.
         12) If user asks the question which not related to mental 
             health and its life, and ask random question.Don't  give 
             the answer to the user, still user asking such question tell 
             user "I am a mitra , I cannot give the answers of such type 
             of  question. NOw the next sentence onwards is your previous chat witht the user
         13) current user status is ${current_status}
-        13) Reply should be very short not more than 40 tokens. it should not look like incomplete msg at all"`;
+        13) Reply should be very short not more than 50 tokens. it should not look like incomplete msg at all"`;
 
         console.log('sending to openAI');
 
