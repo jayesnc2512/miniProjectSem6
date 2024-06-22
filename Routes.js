@@ -4,6 +4,10 @@ const dotenv = require('dotenv');
 const Chat = require("./model");
 var bodyParser = require('body-parser')
 const axios = require('axios');
+const { PDFDocument, rgb } = require('pdf-lib');
+const fs = require('fs');
+const { measureMemory } = require('vm');
+
 // const express = require('express');
 const router = express.Router();
 
@@ -20,7 +24,7 @@ router.post('/send-message', async (req, res) => {
         }
         if (!status) {
             status = "unknown stage"
-        }        
+        }
         let prevChats;
         const userInfo = await Chat.findOne({ userId });
         //status==moderate anxiety,
@@ -49,8 +53,8 @@ router.post('/send-message', async (req, res) => {
                     text: message,
                     role: 'user'
                 });
-                userInfo.userStatus.push(status)
-                current_status=status
+                userInfo.userStatus = status
+                current_status = status
                 await userInfo.save();
             }
             else {
@@ -65,9 +69,9 @@ router.post('/send-message', async (req, res) => {
 
             console.log("db updated")
             prevChats = userInfo.chats;
-             last20Chats = prevChats.slice(-20);
+            last20Chats = prevChats.slice(-20);
         }
-      
+
 
 
 
@@ -85,7 +89,7 @@ router.post('/send-message', async (req, res) => {
         6) you are a friend of user and talk about mental health of
             user, in such way that normal friend talking his friend.
         7) In this conversation give every response in context of 
-            mental health and try to resoln on yove.and make it 
+            mental health and try to resolve on yovr own.and make it 
             conversational rather than questions and answers.
         8) Don't tell user you wanted to check iur mental 
             health instead of tell user like "you can share me anything 
@@ -102,7 +106,9 @@ router.post('/send-message', async (req, res) => {
             user "I am a mitra , I cannot give the answers of such type 
             of  question. NOw the next sentence onwards is your previous chat witht the user
         13) current user status is ${current_status}
-        13) Reply should be very short not more than 50 tokens. it should not look like incomplete msg at all"`;
+        14) incase user status from serious anxiety issue then suggest them to get doctors consults from our app. we can easily
+        ask for doctors appointment over email. Also while chat and depending on previous chat if the you think use has serious anxiety issue then suggest doctors consulting through our app, otherwise there's no need to suggest doctors.
+        14) Reply should be very short not more than 50 tokens. it should not look like incomplete msg at all"`;
 
         console.log('sending to openAI');
 
@@ -134,17 +140,17 @@ router.post('/send-message', async (req, res) => {
         })
             .then(response => response?.json())
             .then(data => {
-        // Assuming data has the structure you expect
-        const message = data.choices[0].message.content;
+                // Assuming data has the structure you expect
+                const message = data.choices[0].message.content;
 
-        userInfo.chats.push({
-            text: message,
-            userStatus: status,
-            role: 'Mitra'
-        });
-        userInfo.save();
-        res.status(200).json({ chatBack: message});
-    })
+                userInfo.chats.push({
+                    text: message,
+                    userStatus: status,
+                    role: 'Mitra'
+                });
+                userInfo.save();
+                res.status(200).json({ chatBack: message });
+            })
             .catch(error => console.error('Error:', error));
 
     } catch (err) {
@@ -194,8 +200,111 @@ router.post('/get-user-status', async (req, res) => {
     } catch (err) {
         console.log("error in getAllChats");
     }
-
 });
+
+router.post('/generate-report', async (req, res) => {
+    try {
+        let { userId, userStatus, name,email } = req.body;
+        if (!userId ) {
+            res.status(400).json({
+                status: 400,
+                message: "details not sent"
+            })
+        }
+        const userInfo = await Chat.findOne({ userId });
+        let status;
+        if (!userStatus) {
+            userStatus = await userInfo.userStatus;
+        }
+        if (!userStatus) {
+            userStatus = 'Unknown'
+        }
+        prevChats = await userInfo.chats;
+        last50Chats = prevChats.slice(-50);
+        if (!userInfo || !userInfo.chats || prevChats.length < 20) {
+            userStatus = 'new user';
+        }
+
+        console.log("userStatus", userStatus);
+        console.log("userId", userId);
+        let promptForReport = `
+            1)"Provide a concise summary of the entire conversation in 150 words."
+            2)"Identify the specific mental health condition the user might be suffering from based on the chat."
+            3)"Describe how the identified condition is evident in the conversation by highlighting key indicators, patterns, or phrases."
+            4)"Mention any specific behaviors or expressions of distress noted during the interaction."
+            5)"Highlight significant insights or moments in the chat that provide a deeper understanding of the user's mental state."
+            6)the user mental anxiety level is given. if it is  'new use' you should not give an conclusive report. your report shall say that the user is relatively new to our platform so we can provide an conclcusive judgement.
+            7) at the top make bullet point telling the user mental status. this is mental axiety level status of the user-${userStatus}.
+            8) The previuos chats are given below
+            ${last50Chats}.
+            9) in these chats the role user show mesaages by user and Mitra shows messages by our system.
+            10) Name of the User is ${name}.
+        `
+
+
+        console.log('sending to openAI');
+
+        // console.log('system message', systemMsg)
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.OPENAIKEY}`
+        };
+        const requestBody = {
+            "model": "gpt-3.5-turbo",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": promptForReport
+                }
+            ],
+        };
+        let reportContent=''
+        await fetch(process.env.OPENAIURI, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(requestBody)
+        })
+            .then(response => response?.json())
+            .then(data => {
+                // Assuming data has the structure you expect
+                 reportContent = data.choices[0].message.content;
+
+            })
+            .catch(error => console.error('Error:', error));
+        
+
+        const pdfDoc = await PDFDocument.create();
+        let outputPath=`${userId}.pdf`
+        // Add a blank page to the document
+        const page = pdfDoc.addPage();
+
+        // Define the font size and color
+        const fontSize =14;
+        const color = rgb(0, 0, 0);
+        console.log("reportContent", reportContent);
+        // Draw the text on the page
+        await page.drawText(reportContent, {
+            x: 50,
+            y: page.getHeight() - 4 * fontSize,
+            size: fontSize,
+            color: color,
+            maxWidth: page.getWidth() - 2 * 50,
+
+        });
+
+        // Serialize the PDFDocument to bytes
+        const pdfBytes = await pdfDoc.save();
+
+        // Write the PDF to a file
+        fs.writeFileSync(outputPath, pdfBytes);
+        console.log(`PDF saved to ${outputPath}`);
+        res.status(200).json({message:"Report generated"});
+
+    } catch (err) {
+        console.log("error in generate-report", err);
+        res.status(500);
+    }
+})
 
 
 
